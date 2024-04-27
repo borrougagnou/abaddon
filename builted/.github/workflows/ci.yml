@@ -1,0 +1,231 @@
+name: Abaddon CI
+
+on: [ push, pull_request ]
+
+jobs:
+  msys2:
+    name: msys2-mingw64
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        buildtype: [ Debug, RelWithDebInfo, MinSizeRel ]
+        mindeps: [ false ]
+        include:
+          - buildtype: RelWithDebInfo
+            mindeps: true
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Setup MSYS2 (1)
+        uses: haya14busa/action-cond@v1
+        id: setupmsys
+        with:
+          cond: ${{ matrix.mindeps == true }}
+          if_true: >-
+            git
+            make
+            unzip
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-nlohmann-json
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-gtkmm3
+            mingw-w64-x86_64-spdlog
+          if_false: >-
+            git
+            make
+            unzip
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-nlohmann-json
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-gtkmm3
+            mingw-w64-x86_64-libhandy
+            mingw-w64-x86_64-opus
+            mingw-w64-x86_64-libsodium
+            mingw-w64-x86_64-spdlog
+
+      - name: Setup MSYS2 (2)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          install: ${{ steps.setupmsys.outputs.value }}
+
+      - name: Build (1)
+        uses: haya14busa/action-cond@v1
+        id: build
+        with:
+          cond: ${{ matrix.mindeps == true }}
+          if_true: |
+            cmake -GNinja -Bbuild -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -DUSE_LIBHANDY=OFF -DENABLE_VOICE=OFF -DENABLE_NOTIFICATION_SOUNDS=OFF -DENABLE_QRCODE_LOGIN=OFF -DENABLE_RNNOISE=OFF
+            cmake --build build
+          if_false: |
+            cmake -GNinja -Bbuild -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -DCMAKE_CXX_FLAGS="-Wl,--default-image-base-low"
+            cmake --build build
+
+      - name: Build (2)
+        run: ${{ steps.build.outputs.value }}
+
+      - name: Setup Artifact
+        run: |
+          artifact_dir=build/artifactdir/abaddon-${{ matrix.buildtype }}-${GITHUB_SHA::7}
+          mkdir -p ${artifact_dir}/bin ${artifact_dir}/etc/ssl/certs ${artifact_dir}/lib ${artifact_dir}/share/glib-2.0/schemas
+          cd build
+          cp *.exe ../${artifact_dir}/bin
+          cd ..
+          cp /mingw64/etc/ssl/certs/ca-bundle.crt ${artifact_dir}/etc/ssl/certs
+          cp -r /mingw64/lib/gdk-pixbuf-2.0 ${artifact_dir}/lib
+          cp -r res/css res/res res/fonts ${artifact_dir}/bin
+          cp /mingw64/share/glib-2.0/schemas/gschemas.compiled ${artifact_dir}/share/glib-2.0/schemas
+          cat "ci/msys-deps.txt" | sed 's/\r$//' | xargs -I % cp /mingw64% ${artifact_dir}/bin || :
+          cp /usr/bin/msys-ffi-8.dll ${artifact_dir}/bin/libffi-8.dll
+          mkdir -p ${artifact_dir}/share/icons/Adwaita
+          cd ${artifact_dir}/share/icons/Adwaita
+          mkdir -p 16x16/actions 24x24/actions 32x32/actions 48x48/actions 64x64/actions 96x96/actions scalable/actions
+          mkdir -p 16x16/devices 24x24/devices 32x32/devices 48x48/devices 64x64/devices 96x96/devices scalable/devices
+          mkdir -p 16x16/status 24x24/status 32x32/status 48x48/status 64x64/status 96x96/status scalable/status
+          cd ${GITHUB_WORKSPACE}
+          wget https://github.com/rtlewis1/GTK/archive/refs/heads/Material-Black-Colors-Desktop.zip
+          unzip Material-Black-Colors-Desktop.zip 'GTK-Material-Black-Colors-Desktop/Material-Black-Cherry/**/*'
+          mkdir -p ${artifact_dir}/share/themes
+          mv ./GTK-Material-Black-Colors-Desktop/Material-Black-Cherry ${artifact_dir}/share/themes/Material-Black-Cherry
+          cp -r ci/tree/. ${artifact_dir}
+          cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/index.theme ${artifact_dir}/share/icons/Adwaita/index.theme
+          cat "ci/used-icons.txt" | sed 's/\r$//' | xargs -I % cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/16x16/%.symbolic.png ${artifact_dir}/share/icons/Adwaita/16x16/%.symbolic.png || :
+          cat "ci/used-icons.txt" | sed 's/\r$//' | xargs -I % cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/24x24/%.symbolic.png ${artifact_dir}/share/icons/Adwaita/24x24/%.symbolic.png || :
+          cat "ci/used-icons.txt" | sed 's/\r$//' | xargs -I % cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/32x32/%.symbolic.png ${artifact_dir}/share/icons/Adwaita/32x32/%.symbolic.png || :
+          cat "ci/used-icons.txt" | sed 's/\r$//' | xargs -I % cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/48x48/%.symbolic.png ${artifact_dir}/share/icons/Adwaita/48x48/%.symbolic.png || :
+          cat "ci/used-icons.txt" | sed 's/\r$//' | xargs -I % cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/64x64/%.symbolic.png ${artifact_dir}/share/icons/Adwaita/64x64/%.symbolic.png || :
+          cat "ci/used-icons.txt" | sed 's/\r$//' | xargs -I % cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/96x96/%.symbolic.png ${artifact_dir}/share/icons/Adwaita/96x96/%.symbolic.png || :
+          cat "ci/used-icons.txt" | sed 's/\r$//' | xargs -I % cp ci/gtk-for-windows/gtk-nsis-pack/share/icons/Adwaita/scalable/%.svg ${artifact_dir}/share/icons/Adwaita/scalable/%.svg || :
+          cd ${artifact_dir}/share/icons/Adwaita
+          gtk-update-icon-cache .
+
+      - name: Upload build (1)
+        uses: haya14busa/action-cond@v1
+        id: buildname
+        with:
+          cond: ${{ matrix.mindeps == true }}
+          if_true: "${{ matrix.buildtype }}-mindeps"
+          if_false: "${{ matrix.buildtype }}"
+
+      - name: Upload build (2)
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-windows-msys2-${{ steps.buildname.outputs.value }}
+          path: build/artifactdir
+
+  mac:
+    name: macos-${{ matrix.buildtype }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        buildtype: [ Debug, RelWithDebInfo ]
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Fetch CMake
+        uses: lukka/get-cmake@v3.21.2
+
+      - name: Fetch dependencies
+        run: |
+          brew install pkg-config
+          brew install gtkmm3
+          brew install nlohmann-json
+          brew install jpeg
+          brew install opus
+          brew install libsodium
+          brew install spdlog
+          brew install libhandy
+
+      - name: Build
+        uses: lukka/run-cmake@v3
+        with:
+          buildDirectory: ${{ runner.workspace }}/build
+          cmakeBuildType: ${{ matrix.buildtype }}
+
+      - name: Setup artifact files
+        run: |
+          artifact_dir=build/artifactdir/abaddon-${{ matrix.buildtype }}-${GITHUB_SHA::7}
+          mkdir -p "${artifact_dir}"
+          cp "${{runner.workspace}}/build/abaddon" "${artifact_dir}/abaddon"
+          cp -r "${{ github.workspace }}/res/css" "${artifact_dir}/css"
+          cp -r "${{ github.workspace }}/res/res" "${artifact_dir}/res"
+
+      - name: Upload build
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-macos-${{ matrix.buildtype }}
+          path: build/artifactdir
+
+  linux:
+    name: linux-${{ matrix.buildtype }}
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        buildtype: [ Debug, RelWithDebInfo, MinSizeRel ]
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Fetch CMake
+        uses: lukka/get-cmake@v3.21.2
+
+      - name: Fetch dependencies
+        run: |
+          sudo apt-get update
+          mkdir deps
+          cd deps
+          git clone https://github.com/nlohmann/json
+          cd json
+          git checkout bc889afb4c5bf1c0d8ee29ef35eaaf4c8bef8a5d
+          mkdir build
+          cd build
+          cmake ..
+          make
+          sudo make install
+          sudo apt-get install libgtkmm-3.0-dev
+          sudo apt-get install libcurl4-gnutls-dev
+          sudo apt-get install libopus-dev
+          sudo apt-get install libsodium-dev
+          sudo apt-get install libspdlog-dev
+          sudo apt-get install libhandy-1-dev
+
+      - name: Build
+        uses: lukka/run-cmake@v3
+        env:
+          CC: gcc-9
+          CXX: g++-9
+        with:
+          cmakeAppendedArgs: -DCMAKE_C_COMPILER=gcc-9 -DCMAKE_CXX_COMPILER=g++-9
+          buildDirectory: ${{ runner.workspace }}/build
+          cmakeBuildType: ${{ matrix.buildtype }}
+
+      - name: Setup artifact files
+        run: |
+          artifact_dir=${{ runner.workspace }}/artifactdir/abaddon-${{ matrix.buildtype }}-${GITHUB_SHA::7}
+          mkdir -p "${artifact_dir}"
+          cp "${{runner.workspace}}/build/abaddon" "${artifact_dir}/abaddon"
+          cp -r "${{ github.workspace }}/res/css" "${artifact_dir}/css"
+          cp -r "${{ github.workspace }}/res/res" "${artifact_dir}/res"
+
+      - name: Upload build
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-linux-${{ matrix.buildtype }}
+          path: ${{ runner.workspace }}/artifactdir

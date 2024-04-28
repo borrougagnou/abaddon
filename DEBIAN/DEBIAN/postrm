@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# kill any currently running Abaddon
+if pgrep abaddon ; then
+  pkill abaddon
+  sleep 1
+  pkill -9 abaddon
+fi
+
+
+rm -f  '/usr/share/applications/abaddon.desktop'
+rm -f  '/usr/local/bin/abaddon' 
+rm -rf '/usr/share/abaddon'

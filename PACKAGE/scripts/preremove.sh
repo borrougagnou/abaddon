@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # kill any currently running Abaddon
 if pgrep abaddon ; then
   pkill abaddon
@@ -7,4 +9,3 @@ if pgrep abaddon ; then
   pkill -9 abaddon
 fi
 
-mkdir -p '/usr/share/abaddon'

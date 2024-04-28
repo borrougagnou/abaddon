@@ -1,0 +1,46 @@
+# nfpm example configuration file
+#
+# check https://nfpm.goreleaser.com/configuration for detailed usage
+#
+name: "abaddon"
+arch: "amd64"
+epoch: 2
+platform: "linux"
+version: "0.2.1"
+section: "main"
+priority: "optional"
+depends:
+  - libgtkmm-3.0-1v5
+  - libcurl4-gnutls-dev
+  - libsqlite3-0
+  - libhandy-1-0
+  - libsecret-1-0
+  - libopus0
+  - libsodium23
+  - libspdlog1
+recommends:
+  - nlohmann-json3-dev
+  - libssl3
+maintainer: "borrougagnou <borrougagnou@github.com>"
+description: |
+  An alternative Discord client with voice support made with C++ and GTK 3
+vendor: "Abaddon"
+homepage: "https://github.com/uowuo/abaddon"
+license: "GPLv3"
+changelog: "changelog.yaml"
+contents:
+- src: ./content/usr/share/abaddon
+  dst: /usr/share/abaddon
+  type: tree
+- src: /usr/share/abaddon/abaddon
+  dst: /usr/bin/abaddon
+  type: symlink
+- src: /usr/share/abaddon/abaddon.desktop
+  dst: /usr/share/applications/abaddon.desktop
+  type: symlink
+umask: 0o002
+scripts:
+  postinstall: ./scripts/postinstall.sh
+  preremove: ./scripts/preremove.sh
+  postremove: ./scripts/postremove.sh
+

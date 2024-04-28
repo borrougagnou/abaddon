@@ -1,8 +1,0 @@
-#!/bin/sh
-
-set -e
-
-[ -f /usr/share/applications/abaddon.desktop ] && rm -f  '/usr/share/applications/abaddon.desktop'
-[ -f /usr/local/bin/abaddon ] && rm -f  '/usr/local/bin/abaddon'
-[ -d /usr/share/abaddon ] && rm -rf '/usr/share/abaddon'
-

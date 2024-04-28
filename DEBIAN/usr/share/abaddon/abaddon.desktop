@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Abaddon
+StartupWMClass=abaddon
+Comment=An alternative Discord client with voice support made with C++ and GTK 3
+GenericName=Internet Messenger
+Exec=/usr/share/abaddon/abaddon
+#Icon=
+Type=Application
+Categories=Network;InstantMessaging;
+Path=/usr/bin
